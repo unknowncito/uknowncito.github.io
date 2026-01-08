@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tetris | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Tetris</h2>
+    <p>The classic tile-matching puzzle game Tetris with falling tetrominoes.</p>
+    
+    <img src="images/tik tak toe.png" alt="Tetris Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+from cmu_cpcs_utils import prettyPrint
+import copy 
+import math 
+
+def onAppStart(app):
+    app.rows = 8
+    app.cols = 6
+    app.boardLeft = 95
+    app.boardTop = 50
+    app.boardWidth = 210
+    app.boardHeight = 280
+    app.cellBorderWidth = 2
+    app.board = [([None] * app.cols) for row in range(app.rows)]
+    app.piece = None
+    loadTetrisPieces(app)
+    app.nextPieceIndex = 0
+    loadNextPiece(app)
+
+def onKeyPress(app, key):
+    if '0' <= key <= '6':
+        loadPiece(app, int(key))
+    elif key == 'left':  movePiece(app, 0, -1)
+    elif key == 'right': movePiece(app, 0, +1)
+    elif key == 'down':  movePiece(app, +1, 0)
+    elif key == 'up':    rotatePieceClockwise(app)
+    elif key == 'space': hardDropPiece(app)
+    elif key == 's': takeStep(app)
+
+def placePieceOnBoard(app):
+    pieceRows, pieceCols = len(app.piece), len(app.piece[0])
+    for pieceRow in range(pieceRows):
+        for pieceCol in range(pieceCols):
+            if app.piece[pieceRow][pieceCol]:
+                boardRow = pieceRow + app.pieceTopRow
+                boardCol = pieceCol + app.pieceLeftCol
+                app.board[boardRow][boardCol] = app.pieceColor
+
+def takeStep(app):
+    if not movePiece(app, +1, 0):
+        placePieceOnBoard(app)
+        removeFullRows(app)
+        loadNextPiece(app)
+
+def removeFullRows(app):
+    row = 0
+    fullRowCount = 0
+    while row < len(app.board):
+        if (None not in app.board[row]):
+            app.board.pop(row)
+            fullRowCount += 1
+        else:
+            row += 1
+    for _ in range(fullRowCount):
+        app.board.insert(0, [None]*app.cols)
+
+def loadNextPiece(app):
+    loadPiece(app, app.nextPieceIndex)
+    app.nextPieceIndex = (app.nextPieceIndex + 1) % len(app.tetrisPieces)
+
+def rotatePieceClockwise(app):
+    oldPiece = app.piece
+    oldTopRow = app.pieceTopRow
+    oldLeftCol = app.pieceLeftCol
+    app.piece = rotate2dListClockwise(app.piece)
+    oldRows, oldCols = len(oldPiece), len(oldPiece[0])
+    newRows, newCols = oldCols, oldRows
+    centerRow = oldTopRow + oldRows//2
+    centerCol = oldLeftCol + oldCols//2
+    app.pieceTopRow = centerRow - newRows//2
+    app.pieceLeftCol = centerCol - newCols//2
+    if not pieceIsLegal(app):
+        app.piece = oldPiece
+        app.pieceTopRow = oldTopRow
+        app.pieceLeftCol = oldLeftCol
+
+def rotate2dListClockwise(L):
+    oldRows, oldCols = len(L), len(L[0])
+    newRows, newCols = oldCols, oldRows
+    M = [([None] * newCols) for row in range(newRows)]
+    for oldRow in range(oldRows):
+        for oldCol in range(oldCols):
+            newRow = oldCol
+            newCol = (newCols - 1) - oldRow
+            M[newRow][newCol] = L[oldRow][oldCol]
+    return M
+
+def hardDropPiece(app):
+    while movePiece(app, +1, 0):
+        pass
+
+def movePiece(app, drow, dcol):
+    app.pieceTopRow += drow
+    app.pieceLeftCol += dcol
+    if pieceIsLegal(app):
+        return True
+    else:
+        app.pieceTopRow -= drow
+        app.pieceLeftCol -= dcol
+        return False
+
+def pieceIsLegal(app):
+    pieceRows, pieceCols = len(app.piece), len(app.piece[0])
+    for pieceRow in range(pieceRows):
+        for pieceCol in range(pieceCols):
+            if app.piece[pieceRow][pieceCol]:
+                boardRow = pieceRow + app.pieceTopRow
+                boardCol = pieceCol + app.pieceLeftCol
+                if ((boardRow < 0) or (boardRow >= app.rows) or
+                    (boardCol < 0) or (boardCol >= app.cols)):
+                    return False
+                if app.board[boardRow][boardCol] != None:
+                    return False
+    return True
+
+def loadPiece(app, pieceIndex):
+    app.piece = app.tetrisPieces[pieceIndex]
+    app.pieceColor = app.tetrisPieceColors[pieceIndex]
+    app.pieceTopRow = 0
+    pieceCols = len(app.piece[0])
+    app.pieceLeftCol = (app.cols - pieceCols)//2
+
+def loadTetrisPieces(app):
+    iPiece = [[  True,  True,  True,  True ]]
+    jPiece = [[  True, False, False ],
+              [  True,  True,  True ]]
+    lPiece = [[ False, False,  True ],
+              [  True,  True,  True ]]
+    oPiece = [[  True,  True ],
+              [  True,  True ]]
+    sPiece = [[ False,  True,  True ],
+              [  True,  True, False ]]
+    tPiece = [[ False,  True, False ],
+              [  True,  True,  True ]]
+    zPiece = [[  True,  True, False ],
+              [ False,  True,  True ]] 
+    app.tetrisPieces = [ iPiece, jPiece, lPiece, oPiece,
+                         sPiece, tPiece, zPiece ]
+    app.tetrisPieceColors = [ 'red', 'yellow', 'magenta', 'pink',
+                              'cyan', 'green', 'orange' ]
+
+def redrawAll(app):
+    drawLabel('Tetris (Step 7)', 200, 30, size=16)
+    drawBoard(app)
+    drawPiece(app)
+    drawBoardBorder(app)
+
+def drawPiece(app):
+    pieceRows, pieceCols = len(app.piece), len(app.piece[0])
+    for pieceRow in range(pieceRows):
+        for pieceCol in range(pieceCols):
+            if app.piece[pieceRow][pieceCol]:
+                boardRow = pieceRow + app.pieceTopRow
+                boardCol = pieceCol + app.pieceLeftCol
+                color = app.pieceColor
+                drawCell(app, boardRow, boardCol, color)
+
+def drawBoard(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            color = app.board[row][col]
+            drawCell(app, row, col, color)
+
+def drawBoardBorder(app):
+  drawRect(app.boardLeft, app.boardTop, app.boardWidth, app.boardHeight,
+           fill=None, border='black',
+           borderWidth=2*app.cellBorderWidth)
+
+def drawCell(app, row, col, color):
+    cellLeft, cellTop = getCellLeftTop(app, row, col)
+    cellWidth, cellHeight = getCellSize(app)
+    drawRect(cellLeft, cellTop, cellWidth, cellHeight,
+             fill=color, border='black',
+             borderWidth=app.cellBorderWidth)
+
+def getCellLeftTop(app, row, col):
+    cellWidth, cellHeight = getCellSize(app)
+    cellLeft = app.boardLeft + col * cellWidth
+    cellTop = app.boardTop + row * cellHeight
+    return (cellLeft, cellTop)
+
+def getCellSize(app):
+    cellWidth = app.boardWidth / app.cols
+    cellHeight = app.boardHeight / app.rows
+    return (cellWidth, cellHeight)
+
+def main():
+    runApp()
+
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>

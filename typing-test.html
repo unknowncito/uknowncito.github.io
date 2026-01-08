@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typing Test | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Typing Test</h2>
+    <p>A typing speed and accuracy test application.</p>
+    
+    <img src="images/typingtest.png" alt="Typing Test Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+import random
+
+def onAppStart(app):
+    app.word = getNewWord()
+    app.letterIndex = 0
+    app.typos = 0
+
+def getNewWord():
+    words = ['apple', 'banana', 'cherry', 'date', 'elderberry',
+             'fig', 'grape', 'honeydew', 'kiwi', 'lemon']
+    return random.choice(words)
+
+def redrawAll(app):
+    drawRect(0, 0, 400, 400, fill='white')
+    drawLabel('Typing Test', 200, 50, size=30, bold=True)
+    drawLabel(f'Typos: {app.typos}', 200, 100, size=20)
+    drawLabel('Press Escape for new word', 200, 350, size=16)
+    
+    # Draw the word with colored boxes
+    startX = 200 - len(app.word) * 15
+    for i in range(len(app.word)):
+        letter = app.word[i]
+        x = startX + i * 30
+        y = 200
+        
+        if i < app.letterIndex:
+            # Already typed - green
+            fill = 'lightGreen'
+        elif i == app.letterIndex:
+            # Current letter - white
+            fill = 'white'
+        else:
+            # Not yet typed - pink
+            fill = 'pink'
+        
+        drawRect(x, y, 25, 40, fill=fill, border='black')
+        drawLabel(letter, x + 12.5, y + 20, size=20, bold=True)
+
+def onKeyPress(app, key):
+    if key == 'escape':
+        app.word = getNewWord()
+        app.letterIndex = 0
+    elif app.letterIndex < len(app.word):
+        if key == app.word[app.letterIndex]:
+            app.letterIndex += 1
+            if app.letterIndex == len(app.word):
+                # Word complete!
+                app.word = getNewWord()
+                app.letterIndex = 0
+        else:
+            app.typos += 1
+
+def main():
+    runApp()
+
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>

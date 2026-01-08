@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walls and Portals | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Walls and Portals</h2>
+    <p>A puzzle game exploring spatial reasoning and portal mechanics.</p>
+    
+    <img src="images/wallsandportals.png" alt="Walls and Portals Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+import copy
+
+def onAppStart(app):
+    # App dimensions
+    app.width = 400
+    app.height = 400
+    
+    # Ball properties
+    app.ballRadius = 10
+    app.ballCx = 75
+    app.ballCy = 200
+    app.ballSpeedX = 7
+    app.ballSpeedY = 5
+    
+    # Portal properties
+    app.portalRadius = 20
+    app.portal1X = 150
+    app.portal1Y = 100
+    app.portal2X = 300
+    app.portal2Y = 300
+    
+    # Goal properties
+    app.goalX = 350
+    app.goalY = 50
+    app.goalSize = 30
+    
+    # Game state
+    app.gameWon = False
+    app.stepsPerSecond = 30
+
+def redrawAll(app):
+    # Background
+    drawRect(0, 0, app.width, app.height, fill='lightBlue')
+    
+    # Draw portals
+    drawCircle(app.portal1X, app.portal1Y, app.portalRadius, fill='orange', border='darkOrange', borderWidth=3)
+    drawCircle(app.portal2X, app.portal2Y, app.portalRadius, fill='purple', border='darkPurple', borderWidth=3)
+    
+    # Draw goal
+    drawRect(app.goalX - app.goalSize/2, app.goalY - app.goalSize/2, 
+             app.goalSize, app.goalSize, fill='gold', border='darkGoldenrod', borderWidth=2)
+    
+    # Draw ball
+    drawCircle(app.ballCx, app.ballCy, app.ballRadius, fill='red')
+    
+    # Draw win message
+    if app.gameWon:
+        drawLabel('You Won!', app.width/2, app.height/2, size=40, fill='green', bold=True)
+
+def onStep(app):
+    if not app.gameWon:
+        # Move ball
+        app.ballCx += app.ballSpeedX
+        app.ballCy += app.ballSpeedY
+        
+        # Bounce off walls
+        if app.ballCx - app.ballRadius <= 0 or app.ballCx + app.ballRadius >= app.width:
+            app.ballSpeedX = -app.ballSpeedX
+        if app.ballCy - app.ballRadius <= 0 or app.ballCy + app.ballRadius >= app.height:
+            app.ballSpeedY = -app.ballSpeedY
+        
+        # Check portal collision
+        checkPortalCollision(app)
+        
+        # Check goal collision
+        if (abs(app.ballCx - app.goalX) < app.goalSize/2 + app.ballRadius and
+            abs(app.ballCy - app.goalY) < app.goalSize/2 + app.ballRadius):
+            app.gameWon = True
+
+def checkPortalCollision(app):
+    # Check if ball hits portal 1
+    distance1 = ((app.ballCx - app.portal1X)**2 + (app.ballCy - app.portal1Y)**2)**0.5
+    if distance1 < app.portalRadius + app.ballRadius:
+        # Teleport to portal 2
+        app.ballCx = app.portal2X
+        app.ballCy = app.portal2Y
+    
+    # Check if ball hits portal 2
+    distance2 = ((app.ballCx - app.portal2X)**2 + (app.ballCy - app.portal2Y)**2)**0.5
+    if distance2 < app.portalRadius + app.ballRadius:
+        # Teleport to portal 1
+        app.ballCx = app.portal1X
+        app.ballCy = app.portal1Y
+
+def onKeyPress(app, key):
+    if key == 'r':
+        onAppStart(app)
+
+def main():
+    runApp()
+
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>

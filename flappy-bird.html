@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flappy Bird | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Flappy Bird</h2>
+    <p>A simple but challenging game where you control a bird navigating through obstacles.</p>
+    
+    <img src="images/flappycmu.png" alt="Flappy Bird Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+import random
+
+def main():
+    print('Place your code here!')
+    runApp()
+    
+def appRestart(app):
+    app.playerhit = False
+    app.separateTube = 1
+    app.tubeRand = 1
+    app.dx2= 1
+    app.flappyDy=1
+    app.counter=50
+    app.isJumping= False 
+    app.flappy=200
+    app.rx = 200
+    app.ry = 300
+    app.keyHeld = None
+    app.stepsPerSecond = 1
+    app.steps = 1
+    app.dx = 10
+    app.dy = 1
+    app.cx = 100
+    app.cy = 100
+    app.random = 0
+    app.gameStart = False
+    app.opacity = 100
+    app.gameOver = False
+    app.wallHp = 1
+    app.level = 1
+    app.bricksLeft =1
+    app.brickPattern = 'Square'
+    app.brickY = 20
+    app.brickX = 20
+    app.brickHpList = [1,1,1,1,1,1]
+    
+def onAppStart(app):
+    appRestart(app)
+
+def redrawAll(app):
+    drawRect(0,0,400,400,fill=gradient('powderBlue','lightblue','gold',start='top'))
+    
+    # Cloud 1
+    cloud1 = (drawCircle(200+40, 100-10, 30, fill='white'),
+            drawCircle(200+10, 115-20, 30, fill='white'),
+            drawCircle(200-15, 115-20, 30, fill='white'),
+            drawCircle(200-30, 115, 30, fill='white'))
+    
+    # Cloud 2
+    cloud2 = (drawCircle(78+40, 89-10, 30, fill='white'),
+            drawCircle(78+10, 89-20, 30, fill='white'),
+            drawCircle(78-15, 89-20, 30, fill='white'),
+            drawCircle(78-30, 89, 30, fill='white'))
+    
+    # Bird
+    flappy = drawCircle(app.counter,app.flappy, 20, fill='crimson')
+    
+    if app.opacity > 0:
+        if app.gameOver == True:
+            drawLabel('Ya lost stupid',300,50,opacity = app.opacity)
+        drawLabel('Press space to start',300,100,opacity = app.opacity)
+        drawLabel('Use the paddle to Bounce the ball and break bricks',200,200,opacity = app.opacity)
+    
+    # Draw pipes
+    data1=[230,250,300,230,220,340,330,234,200,230,300,230]
+    data2=[120,150,225,125,80,250,240,145,125 ,130,200,150]
+    for i in range(len(data1)):
+        l2=app.width/2
+        x1=l2 + i*200
+        c=data1[i]
+        d=data2[i]
+        pillardown= drawRect(x1-app.dx2,c,50,400-c, 
+                            fill=gradient('lightGreen','limeGreen','lawnGreen','lightGreen',start='left'),
+                            border='black')
+        drawRect(x1-app.dx2, c, 56, 25,
+                fill=gradient('lightGreen','limeGreen','lawnGreen','lightGreen',start='left'),
+                border='black')
+        pillarUp = (drawRect(x1-app.dx2,0,50,d,
+                            fill=gradient('lightGreen','limeGreen','lawnGreen','lightGreen',start='left'),
+                            border='black'),
+                   drawRect(x1-app.dx2,d,56,25,
+                            fill=gradient('lightGreen','limeGreen','lawnGreen','lightGreen',start='left'),
+                            border='black'))
+
+def onKeyPress(app,key):
+    if key =='space':
+        app.isJumping =True 
+        app.dy=-1.5
+        app.gameStart = True
+        app.stepsPerSecond = 100
+    if app.gameStart == True:
+        if key == 'left' and app.keyHeld == None:
+            app.keyHeld = 'left'
+        if key == 'right' and app.keyHeld == None:
+            app.keyHeld = 'right'
+        
+def onKeyRelease(app,key):
+    if app.gameStart == True:
+        if app.keyHeld == 'left' and app.keyHeld == 'left':
+            app.keyHeld = None
+        elif app.keyHeld == 'right' and app.keyHeld == 'right':
+            app.keyHeld = None
+
+def onStep(app):
+    print(app.counter,app.flappy,)
+    app.separateTube+=1
+    app.tubeRand += 1
+    app.flappy += app.dy
+    app.dy +=0.05
+    app.dx2+=1.5 
+    app.steps+=1 
+
+def hitsShape(app):
+    if app.flappy >= 400:
+        app.gameOver = True
+    
+    app.steps += 1
+
+    if app.keyHeld == 'left' and app.rx > 0 + 35 and app.steps % 2 == 0:
+        app.rx -= 5
+    elif app.keyHeld == 'right' and app.rx < 400-35 and app.steps % 2 == 0:
+        app.rx += 5
+    if app.steps % 5 == 0:
+        bounceHorizontally(app)
+        bounceVertically(app)
+    if app.steps % 25 == 0 and app.opacity >0:
+        app.opacity -= 10
+    if app.opacity == 0:
+        app.gameOver = False
+
+def bounceHorizontally(app):
+    app.cx += app.dx
+    if app.cx >= app.width - 7:
+        app.dx = -app.dx
+    elif app.cx <= 7:
+        app.cx = 7
+        app.dx = -app.dx
+
+def bounceVertically(app):
+    app.cy += app.dy
+    if  app.cx > app.rx - 35 and app.cx < app.rx + 35 and app.cy > app.ry and app.cy < app.ry+ 20:
+        app.cy = 295
+        app.dy = -app.dy
+    elif app.cy <=7:
+        app.cy = 7
+        app.dy = -app.dy
+    elif app.cy > app.height:
+        appRestart(app)
+        app.stepsPerSeconds = 0
+        app.gameOver = True
+        
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>

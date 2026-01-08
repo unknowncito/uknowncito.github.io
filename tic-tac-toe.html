@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic Tac Toe | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Tic Tac Toe</h2>
+    <p>A classic Tic Tac Toe game implementation.</p>
+    
+    <img src="images/tictactoe.png" alt="Tic Tac Toe Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+import random
+
+def onAppStart(app):
+    app.rows = 3
+    app.cols = 3
+    app.boardLeft = 50
+    app.boardTop = 50
+    app.boardWidth = 300
+    app.boardHeight = 300
+    app.cellBorderWidth = 2
+    app.board = [['', '', ''],
+                 ['', '', ''],
+                 ['', '', '']]
+    app.currentPlayer = 'X'
+    app.gameOver = False
+    app.winner = None
+    app.winningCells = None
+
+def redrawAll(app):
+    drawLabel('Tic-Tac-Toe', 200, 25, size=24, bold=True)
+    drawBoard(app)
+    drawBoardBorder(app)
+    drawMarks(app)
+    
+    if app.gameOver:
+        if app.winner:
+            drawLabel(f'{app.winner} Wins!', 200, 375, size=20, bold=True, fill='green')
+            drawWinningLine(app)
+        else:
+            drawLabel('Tie!', 200, 375, size=20, bold=True, fill='blue')
+        drawLabel('Press r to restart', 200, 390, size=16)
+    else:
+        drawLabel(f\"Current Player: {app.currentPlayer}\", 200, 375, size=16)
+
+def drawBoard(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            drawCell(app, row, col)
+
+def drawBoardBorder(app):
+    drawRect(app.boardLeft, app.boardTop, app.boardWidth, app.boardHeight,
+             fill=None, border='black', borderWidth=2*app.cellBorderWidth)
+
+def drawCell(app, row, col):
+    cellLeft, cellTop = getCellLeftTop(app, row, col)
+    cellWidth, cellHeight = getCellSize(app)
+    drawRect(cellLeft, cellTop, cellWidth, cellHeight,
+             fill=None, border='gray', borderWidth=app.cellBorderWidth)
+
+def drawMarks(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            mark = app.board[row][col]
+            if mark != '':
+                cellLeft, cellTop = getCellLeftTop(app, row, col)
+                cellWidth, cellHeight = getCellSize(app)
+                cx = cellLeft + cellWidth/2
+                cy = cellTop + cellHeight/2
+                
+                if mark == 'X':
+                    drawLabel('X', cx, cy, size=50, bold=True, fill='red')
+                else:
+                    drawLabel('O', cx, cy, size=50, bold=True, fill='blue')
+
+def drawWinningLine(app):
+    if app.winningCells:
+        (r1, c1), (r2, c2) = app.winningCells[0], app.winningCells[2]
+        x1, y1 = getCellCenter(app, r1, c1)
+        x2, y2 = getCellCenter(app, r2, c2)
+        drawLine(x1, y1, x2, y2, fill='green', lineWidth=5)
+
+def getCellCenter(app, row, col):
+    cellLeft, cellTop = getCellLeftTop(app, row, col)
+    cellWidth, cellHeight = getCellSize(app)
+    return cellLeft + cellWidth/2, cellTop + cellHeight/2
+
+def getCellLeftTop(app, row, col):
+    cellWidth, cellHeight = getCellSize(app)
+    cellLeft = app.boardLeft + col * cellWidth
+    cellTop = app.boardTop + row * cellHeight
+    return cellLeft, cellTop
+
+def getCellSize(app):
+    cellWidth = app.boardWidth / app.cols
+    cellHeight = app.boardHeight / app.rows
+    return cellWidth, cellHeight
+
+def onMousePress(app, mouseX, mouseY):
+    if not app.gameOver:
+        selectedCell = getCell(app, mouseX, mouseY)
+        if selectedCell:
+            row, col = selectedCell
+            if app.board[row][col] == '':
+                app.board[row][col] = app.currentPlayer
+                checkForWinner(app)
+                if not app.gameOver:
+                    app.currentPlayer = 'O' if app.currentPlayer == 'X' else 'X'
+
+def getCell(app, x, y):
+    if (x < app.boardLeft or x > app.boardLeft + app.boardWidth or
+        y < app.boardTop or y > app.boardTop + app.boardHeight):
+        return None
+    
+    cellWidth, cellHeight = getCellSize(app)
+    row = int((y - app.boardTop) / cellHeight)
+    col = int((x - app.boardLeft) / cellWidth)
+    
+    if 0 <= row < app.rows and 0 <= col < app.cols:
+        return (row, col)
+    return None
+
+def checkForWinner(app):
+    # Check rows
+    for row in range(app.rows):
+        if checkWinInDir(app, row, 0, 0, 1):
+            return
+    
+    # Check columns
+    for col in range(app.cols):
+        if checkWinInDir(app, 0, col, 1, 0):
+            return
+    
+    # Check diagonals
+    if checkWinInDir(app, 0, 0, 1, 1):
+        return
+    if checkWinInDir(app, 0, 2, 1, -1):
+        return
+    
+    # Check for tie
+    if isFull(app):
+        app.gameOver = True
+
+def checkWinInDir(app, startRow, startCol, drow, dcol):
+    cells = []
+    for i in range(3):
+        row = startRow + i * drow
+        col = startCol + i * dcol
+        cells.append((row, col))
+    
+    marks = [app.board[r][c] for r, c in cells]
+    if marks[0] != '' and marks[0] == marks[1] == marks[2]:
+        app.gameOver = True
+        app.winner = marks[0]
+        app.winningCells = cells
+        return True
+    return False
+
+def isFull(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            if app.board[row][col] == '':
+                return False
+    return True
+
+def onKeyPress(app, key):
+    if key == 'r':
+        onAppStart(app)
+
+def main():
+    runApp()
+
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>

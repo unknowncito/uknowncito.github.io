@@ -1,0 +1,517 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pyodide Run</title>
+  <style>body{font-family:Arial;max-width:900px;margin:30px auto;padding:0 20px}</style>
+</head>
+<body>
+  <header>
+    <h1>Run Python (Pyodide)</h1>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+      <a href="pyodide-run.html">Run Python</a>
+    </nav>
+  </header>
+
+  <p>Write Python below and press Run (example prints Hello World).</p>
+
+  <div style="display:flex;gap:16px;align-items:flex-start">
+    <div style="min-width:220px">
+      <h3>Examples</h3>
+      <select id="examplesSelect" style="width:100%"><option value="">(None)</option></select>
+      <div id="examplesLinks" style="margin-top:8px;font-size:14px;color:#333"></div>
+    </div>
+
+    <div style="flex:1">
+      <textarea id="pycode" rows="12" style="width:100%">print('Hello, world!')</textarea>
+      <div style="margin-top:10px">
+        <button id="runBtn">Run</button>
+        <button id="loadExampleBtn">Load Selected Example</button>
+        <button id="runExampleBtn">Load & Run Selected</button>
+        <span id="status" style="margin-left:10px;color:#666">Loading Pyodide...</span>
+      </div>
+    </div>
+  </div>
+
+  <pre id="output" style="background:#f6f6f6;padding:10px;border:1px solid #ddd;margin-top:12px;white-space:pre-wrap"></pre>
+  <div id="cmu-debug" style="background:#111;color:#0f0;padding:8px;margin-top:12px;max-height:160px;overflow:auto;font-family:monospace;font-size:12px"></div>
+
+  <script>
+    // Use a released Pyodide CDN — update version if desired
+    const pyodideSrc = "https://cdn.jsdelivr.net/pyodide/v0.23.3/full/pyodide.js";
+    const status = document.getElementById('status');
+    const output = document.getElementById('output');
+    let pyodide = null;
+
+    // Load Pyodide
+    (async () => {
+      try {
+        const script = document.createElement('script');
+        script.src = pyodideSrc;
+        document.head.appendChild(script);
+        script.onload = async () => {
+          pyodide = await loadPyodide({});
+          status.textContent = 'Pyodide loaded';
+          // Register a JavaScript-backed cmu_graphics module for drawing
+          const cmuModule = (function(){
+            function cmuDebug(...args){
+              try{
+                const el = document.getElementById('cmu-debug');
+                const line = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+                if(el){ el.textContent += line + '\n'; el.scrollTop = el.scrollHeight; }
+                console.log(...args);
+              }catch(e){ console.log(...args); }
+            }
+
+            const container = document.createElement('div');
+            container.id = 'cmu-canvas-container';
+            container.style.marginTop = '12px';
+            document.body.appendChild(container);
+
+            let canvas = null;
+            let ctx = null;
+            let shapes = {};
+            let nextId = 1;
+
+            function ensureCanvas(w=600,h=400){
+              if(!canvas){
+                canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.style.border = '1px solid #ccc';
+                container.appendChild(canvas);
+                ctx = canvas.getContext('2d');
+              }
+              return [canvas, ctx];
+            }
+
+            function redraw(){
+              if(!ctx || !canvas) return;
+              ctx.clearRect(0,0,canvas.width,canvas.height);
+              // draw in insertion order
+              Object.keys(shapes).forEach(id => {
+                const s = shapes[id];
+                if(s.type === 'circle'){
+                  ctx.beginPath();
+                  ctx.arc(s.x,s.y,s.r,0,2*Math.PI);
+                  ctx.fillStyle = s.fill || 'black';
+                  ctx.fill();
+                } else if(s.type === 'rect'){
+                  ctx.fillStyle = s.fill || 'black';
+                  ctx.fillRect(s.x, s.y, s.w, s.h);
+                } else if(s.type === 'label'){
+                  ctx.font = s.font || '16px sans-serif';
+                  ctx.fillStyle = s.fill || 'black';
+                  ctx.fillText(s.text, s.x, s.y);
+                }
+              });
+            }
+
+            return {
+              createCanvas: (w=600,h=400) => { ensureCanvas(w,h); canvas.width = w; canvas.height = h; redraw(); cmuDebug('createCanvas', w, h); },
+              clear: () => { if(!ctx) ensureCanvas(); ctx.clearRect(0,0,canvas.width,canvas.height); cmuDebug('clear'); },
+              createCircle: (x,y,r,fill='black') => { const id = 's'+(nextId++); shapes[id]={type:'circle',x:x,y:y,r:r,fill:fill}; cmuDebug('createCircle', id, x, y, r, fill); redraw(); return id; },
+              createRect: (x,y,w,h,fill='black') => { const id = 's'+(nextId++); shapes[id]={type:'rect',x:x,y:y,w:w,h:h,fill:fill}; redraw(); return id; },
+              createLabel: (text,x,y,font='16px sans-serif',fill='black') => { const id = 's'+(nextId++); shapes[id]={type:'label',text:text,x:x,y:y,font:font,fill:fill}; redraw(); return id; },
+              setAttr: (id, attr, val) => { if(shapes[id]){ shapes[id][attr]=val; redraw(); } },
+              remove: (id) => { delete shapes[id]; redraw(); cmuDebug('remove', id); },
+              setMouseHandler: (fn) => { ensureCanvas(); canvas.onmousemove = (e) => { try{ fn(e.offsetX, e.offsetY); }catch(err){ try{ fn(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top); }catch(e2){} } }; cmuDebug('setMouseHandler installed'); },
+              setMouseClick: (fn) => { ensureCanvas(); cmuDebug('setMouseClick installed'); canvas.onclick = (e) => { const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top; cmuDebug('canvas click at', x, y); try{ fn(x,y); }catch(err){ cmuDebug('error in click handler', String(err)); } }; },
+              setKeyHandler: (fn) => { cmuDebug('setKeyHandler installed'); window.addEventListener('keydown', (e) => { try{ fn(e.key); }catch(err){ cmuDebug('key handler error', String(err)); } }); },
+              getCanvas: () => canvas,
+            };
+          })();
+          // register module so Python can `import cmu_graphics_js`
+          pyodide.registerJsModule('cmu_graphics_js', cmuModule);
+
+            // Embed the tiny cmu_graphics pyodide shim directly (no external files needed)
+            const cmuShimSource = `"""Pyodide shim for cmu_graphics: delegate to JS renderer registered as cmu_graphics_js.
+
+      Usage: import cmu_graphics.pyodide as cg
+      Then call cg.create_canvas(), cg.circle(...), etc.
+      """
+      try:
+        import cmu_graphics_js as _js
+      except Exception:
+        _js = None
+
+      # Keep references to any created JS proxies so they aren't GC'd by Pyodide
+      _proxies = []
+
+
+      def create_canvas(w=600, h=400):
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        _js.createCanvas(w, h)
+
+
+      def clear():
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        _js.clear()
+
+
+      def circle(x, y, r, color='black'):
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        return _js.createCircle(x, y, r, color)
+
+
+      def rect(x, y, w, h, color='black'):
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        return _js.createRect(x, y, w, h, color)
+
+
+      def label(text, x, y, font='16px sans-serif', color='black'):
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        return _js.createLabel(text, x, y, font, color)
+
+
+      def set_mouse_handler(pyfunc):
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        # Wrap the Python callable in a JS proxy so JS can call it reliably
+        try:
+          from pyodide import create_proxy
+          proxy = create_proxy(pyfunc)
+          _proxies.append(proxy)
+          _js.setMouseHandler(proxy)
+        except Exception:
+          # Fallback: try passing the Python object directly
+          _js.setMouseHandler(pyfunc)
+
+
+      def set_mouse_click(pyfunc):
+        """Register a Python callable to be invoked on mouse click with (x,y)."""
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        try:
+          from pyodide import create_proxy
+          proxy = create_proxy(pyfunc)
+          _proxies.append(proxy)
+          _js.setMouseClick(proxy)
+        except Exception:
+          _js.setMouseClick(pyfunc)
+
+
+      def set_key_handler(pyfunc):
+        """Register a Python callable to be invoked on key press with (key)."""
+        if _js is None:
+          raise RuntimeError('cmu_graphics_js not available')
+        try:
+          from pyodide import create_proxy
+          proxy = create_proxy(pyfunc)
+          _proxies.append(proxy)
+          _js.setKeyHandler(proxy)
+        except Exception:
+          _js.setKeyHandler(pyfunc)
+
+
+      def drawCircle(x, y, r, fill='black', **kwargs):
+        """Legacy API alias for drawCircle used in older cmu_graphics examples."""
+        return circle(x, y, r, fill)
+
+
+      def drawRect(x, y, w, h, fill='black', **kwargs):
+        return rect(x, y, w, h, fill)
+
+
+      def drawLabel(text, x, y, font='16px sans-serif', fill='black', **kwargs):
+        return label(text, x, y, font, fill)
+
+
+      def runApp(app=None, *args, **kwargs):
+        """Run-style compatibility: if called with no args, inspect caller module for
+        `onAppStart`, `redrawAll`, `onMousePress`, `onKeyPress` and wire them to the
+        JS renderer. Returns the created `app` object.
+        """
+        # If user passed an explicit callable, keep previous behavior
+        if app is not None and (callable(app) or hasattr(app, 'main')):
+          if callable(app):
+            return app(*args, **kwargs)
+          main = getattr(app, 'main', None)
+          if callable(main):
+            return main(*args, **kwargs)
+
+        # No explicit app given: introspect caller globals
+        import sys
+        try:
+          frame = sys._getframe(1)
+          g = frame.f_globals
+        except Exception:
+          g = globals()
+
+        onAppStart = g.get('onAppStart')
+        redrawAll = g.get('redrawAll')
+        onMousePress = g.get('onMousePress')
+        onKeyPress = g.get('onKeyPress')
+
+        class App:
+          pass
+
+        app_obj = App()
+        # sensible defaults
+        app_obj.width = 600
+        app_obj.height = 400
+
+        if callable(onAppStart):
+          try:
+            onAppStart(app_obj)
+          except Exception:
+            pass
+
+        # Ensure canvas exists
+        try:
+          create_canvas(app_obj.width, app_obj.height)
+        except Exception:
+          pass
+
+        # Provide redraw wrapper
+        def _do_redraw():
+          if callable(redrawAll):
+            try:
+              redrawAll(app_obj)
+            except Exception:
+              pass
+
+        # Mouse press handler wiring
+        if callable(onMousePress):
+          def _mouse_click(x, y):
+            try:
+              onMousePress(app_obj, x, y)
+            except Exception:
+              pass
+            _do_redraw()
+
+          set_mouse_click(_mouse_click)
+
+        # Key press handler wiring
+        if callable(onKeyPress):
+          def _key_press(key):
+            try:
+              onKeyPress(app_obj, key)
+            except Exception:
+              pass
+            _do_redraw()
+
+          set_key_handler(_key_press)
+
+        # Initial draw
+        _do_redraw()
+
+        return app_obj
+
+
+      def runApp(app=None, *args, **kwargs):
+        """Compatibility shim for code that calls `runApp(...)`.
+
+        If a callable is provided, call it with any args/kwargs. If a module-like
+        object with a `main` attribute is provided, call that. If `None` is given,
+        this is a no-op.
+        """
+        if app is None:
+          return None
+        if callable(app):
+          return app(*args, **kwargs)
+        main = getattr(app, 'main', None)
+        if callable(main):
+          return main(*args, **kwargs)
+        raise TypeError('runApp expects a callable or an object with a callable "main"')
+      `;
+
+            async function installCmuShim(){
+            try{ pyodide.FS.mkdirTree('/site-packages/cmu_graphics'); }catch(e){}
+            pyodide.FS.writeFile('/site-packages/cmu_graphics/__init__.py', "from .pyodide import *\n");
+            pyodide.FS.writeFile('/site-packages/cmu_graphics/pyodide.py', cmuShimSource);
+            await pyodide.runPythonAsync(`import sys
+      import importlib
+      if '/site-packages' not in sys.path:
+        sys.path.insert(0, '/site-packages')
+      importlib.invalidate_caches()`);
+            }
+
+            try{
+            await installCmuShim();
+            await pyodide.runPythonAsync("import cmu_graphics.pyodide as cg; cg.create_canvas()");
+            status.textContent = 'Pyodide + cmu_graphics (embedded shim) ready';
+            }catch(err){
+            console.warn('cmu_graphics shim install failed', err);
+            status.textContent = 'Pyodide loaded (cmu_graphics shim failed)';
+            }
+        };
+      } catch (err) {
+        status.textContent = 'Failed to load Pyodide';
+        output.textContent = String(err);
+      }
+    })();
+
+    // --- Examples loader: fetch examples/index.json and populate UI ---
+    async function fetchExamplesIndex(){
+      try{
+        const resp = await fetch('examples/index.json');
+        if(!resp.ok) return [];
+        const data = await resp.json();
+        return data;
+      }catch(e){ console.warn('Could not load examples index', e); return []; }
+    }
+
+    function makeExampleLink(id){
+      const a = document.createElement('a');
+      a.href = `pyodide-run.html?example=${encodeURIComponent(id)}`;
+      a.textContent = 'Open in subpage';
+      a.style.display = 'inline-block';
+      a.style.marginRight = '8px';
+      return a;
+    }
+
+    async function loadExampleById(id){
+      if(!id) return;
+      const idx = (window._examples || []).find(e => e.id === id);
+      if(!idx) return;
+      try{
+        const resp = await fetch('examples/' + idx.file);
+        if(!resp.ok){ status.textContent = `Failed to fetch example ${idx.file}`; return; }
+        const code = await resp.text();
+        document.getElementById('pycode').value = code;
+        status.textContent = `Loaded example: ${idx.title}`;
+      }catch(e){ console.warn(e); status.textContent = 'Error loading example'; }
+    }
+
+    (async function initExamples(){
+      const list = await fetchExamplesIndex();
+      window._examples = list;
+      const sel = document.getElementById('examplesSelect');
+      const links = document.getElementById('examplesLinks');
+      for(const ex of list){
+        const opt = document.createElement('option'); opt.value = ex.id; opt.textContent = ex.title; sel.appendChild(opt);
+        const div = document.createElement('div');
+        const title = document.createElement('strong'); title.textContent = ex.title + ': ';
+        const desc = document.createElement('span'); desc.textContent = ex.description || '';
+        div.appendChild(title); div.appendChild(desc);
+        const open = makeExampleLink(ex.id);
+        div.appendChild(document.createTextNode(' ')); div.appendChild(open);
+        links.appendChild(div);
+      }
+
+      sel.addEventListener('change', () => { loadExampleById(sel.value); });
+
+      // If ?example=id in URL, auto-load
+      const params = new URLSearchParams(window.location.search);
+      const exParam = params.get('example');
+      if(exParam){
+        sel.value = exParam;
+        await loadExampleById(exParam);
+      }
+    })();
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      if (!pyodide) {
+        status.textContent = 'Still loading...';
+        return;
+      }
+      status.textContent = 'Running...';
+      output.textContent = '';
+      try {
+        // Capture stdout
+        let code = document.getElementById('pycode').value;
+        // We'll allow one automatic indentation-fix attempt
+        let attemptedFix = false;
+
+        async function runUserCode(userCode){
+          pyodide.globals.set('USER_CODE', userCode);
+          try{
+            const res = await pyodide.runPythonAsync(`import sys, io, traceback
+_out = io.StringIO()
+sys.stdout = _out
+sys.stderr = _out
+try:
+    exec(compile(USER_CODE, '<user-code>', 'exec'), globals())
+except Exception:
+    traceback.print_exc()
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
+_out.getvalue()
+`);
+            try{ pyodide.globals.delete('USER_CODE'); }catch(e){}
+            return {ok:true, result: res};
+          }catch(e){
+            try{ pyodide.globals.delete('USER_CODE'); }catch(er){}
+            return {ok:false, error: e};
+          }
+        }
+
+        let runRes = await runUserCode(code);
+        if(!runRes.ok){
+          const errStr = String(runRes.error);
+          if(!attemptedFix && (/IndentationError/.test(errStr) || /expected an indented block/.test(errStr))){
+            attemptedFix = true;
+            function autoFixIndentation(src){
+              const lines = src.split('\n');
+              const out = [];
+              for(let i=0;i<lines.length;i++){
+                const line = lines[i];
+                out.push(line);
+                // detect header lines that end with ':'
+                if(/^\s*(def |class |for |if |while |with ).*:\s*$/.test(line)){
+                  const next = lines[i+1] || '';
+                  // if next line is empty or not indented, insert an indented pass
+                  if(next.trim() === '' || !/^\s+/.test(next)){
+                    const indent = (line.match(/^\s*/)[0] || '') + '    ';
+                    out.push(indent + 'pass');
+                  }
+                }
+              }
+              return out.join('\n');
+            }
+            const fixed = autoFixIndentation(code);
+            if(fixed !== code){
+              code = fixed;
+              document.getElementById('pycode').value = code;
+              status.textContent = 'Auto-fixed indentation; re-running';
+              runRes = await runUserCode(code);
+            }
+          }
+        }
+
+        if(runRes.ok){
+          output.textContent = runRes.result;
+          status.textContent = 'Done';
+        }else{
+          output.textContent = String(runRes.error);
+          status.textContent = 'Error';
+        }
+      } catch (err) {
+        output.textContent = String(err);
+        status.textContent = 'Error';
+      }
+    });
+
+    // Example code to test cmu_graphics
+    const exampleCode = `import cmu_graphics.pyodide as cg
+cg.clear()
+cg.create_canvas(600,400)
+cg.circle(300,200,50,'purple')
+cg.label('Hello from cmu_graphics', 180, 40)
+def onmove(x,y):
+    cg.clear()
+    cg.circle(x,y,20,'blue')
+cg.set_mouse_handler(onmove)
+`;
+
+    document.getElementById('loadExampleBtn').addEventListener('click', () => {
+      document.getElementById('pycode').value = exampleCode;
+    });
+
+    document.getElementById('runExampleBtn').addEventListener('click', async () => {
+      document.getElementById('pycode').value = exampleCode;
+      // reuse existing run handler by triggering click
+      document.getElementById('runBtn').click();
+    });
+  </script>
+</body>
+</html>

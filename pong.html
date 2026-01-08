@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pong | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Pong</h2>
+    <p>A two-player paddle game featuring the classic Pong mechanics.</p>
+    
+    <img src="images/pong.png" alt="Pong Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+import random
+
+def onAppStart(app):
+    app.paddleX = 200
+    app.paddleY = 370
+    app.paddleWidth = 80
+    app.paddleHeight = 10
+    
+    app.ballX = 200
+    app.ballY = 200
+    app.ballRadius = 8
+    app.ballSpeedX = 4
+    app.ballSpeedY = 4
+    
+    app.hits = 0
+    app.misses = 0
+    app.gameOver = False
+    app.stepsPerSecond = 30
+
+def redrawAll(app):
+    drawRect(0, 0, 400, 400, fill='black')
+    
+    # Draw paddle
+    drawRect(app.paddleX - app.paddleWidth/2, app.paddleY,
+             app.paddleWidth, app.paddleHeight, fill='white')
+    
+    # Draw ball
+    drawCircle(app.ballX, app.ballY, app.ballRadius, fill='white')
+    
+    # Draw score
+    drawLabel(f'Hits: {app.hits}', 50, 20, fill='white', size=16, bold=True)
+    drawLabel(f'Misses: {app.misses}', 350, 20, fill='white', size=16, bold=True)
+    
+    if app.gameOver:
+        drawLabel('Game Over!', 200, 200, fill='red', size=30, bold=True)
+        drawLabel('Press r to restart', 200, 230, fill='white', size=16)
+
+def onStep(app):
+    if not app.gameOver:
+        # Move ball
+        app.ballX += app.ballSpeedX
+        app.ballY += app.ballSpeedY
+        
+        # Bounce off walls
+        if app.ballX - app.ballRadius <= 0 or app.ballX + app.ballRadius >= 400:
+            app.ballSpeedX = -app.ballSpeedX
+        
+        if app.ballY - app.ballRadius <= 0:
+            app.ballSpeedY = -app.ballSpeedY
+        
+        # Check paddle collision
+        if (app.ballY + app.ballRadius >= app.paddleY and
+            app.ballY - app.ballRadius <= app.paddleY + app.paddleHeight and
+            app.ballX >= app.paddleX - app.paddleWidth/2 and
+            app.ballX <= app.paddleX + app.paddleWidth/2):
+            app.ballSpeedY = -abs(app.ballSpeedY)
+            app.hits += 1
+        
+        # Check if ball missed
+        if app.ballY - app.ballRadius > 400:
+            app.misses += 1
+            if app.misses >= 3:
+                app.gameOver = True
+            else:
+                # Reset ball
+                app.ballX = 200
+                app.ballY = 200
+                app.ballSpeedY = -abs(app.ballSpeedY)
+
+def onKeyPress(app, key):
+    if key == 'r':
+        onAppStart(app)
+    elif not app.gameOver:
+        if key == 'left' and app.paddleX - app.paddleWidth/2 > 0:
+            app.paddleX -= 20
+        elif key == 'right' and app.paddleX + app.paddleWidth/2 < 400:
+            app.paddleX += 20
+
+def onKeyHold(app, keys):
+    if not app.gameOver:
+        if 'left' in keys and app.paddleX - app.paddleWidth/2 > 0:
+            app.paddleX -= 5
+        if 'right' in keys and app.paddleX + app.paddleWidth/2 < 400:
+            app.paddleX += 5
+
+def main():
+    runApp()
+
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>

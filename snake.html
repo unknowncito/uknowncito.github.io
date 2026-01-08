@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake | Santi Anzaldo</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+
+    header {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      font-weight: normal;
+    }
+
+    nav a {
+      margin-right: 15px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    footer {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Santi Anzaldo</h1>
+    <p>Student | Electronics & Computer Science</p>
+    <nav>
+      <a href="poty.html">Portfolio</a>
+      <a href="about.html">About Me</a>
+      <a href="goals.html">Goals</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Snake</h2>
+    <p>The classic Snake game where you control a growing snake to eat food while avoiding collisions.</p>
+    
+    <img src="images/snake.png" alt="Snake Screenshot" style="max-width:100%;height:auto;border:1px solid #ccc;margin:20px 0;">
+    
+    <h3>Source Code</h3>
+    <pre style="background:#f4f4f4;padding:15px;overflow:auto;max-height:500px;border:1px solid #ccc;border-radius:5px;font-family:monospace;font-size:14px;line-height:1.4;"><code>from cmu_graphics import *
+import random
+
+def onAppStart(app):
+    app.rows = 15
+    app.cols = 15
+    app.boardLeft = 25
+    app.boardTop = 75
+    app.boardWidth = 350
+    app.boardHeight = 350
+    app.cellBorderWidth = 1
+    
+    # Snake starts in middle
+    app.snake = [(app.rows//2, app.cols//2)]
+    app.direction = (0, 1)  # (drow, dcol)
+    
+    # Food
+    app.food = placeFood(app)
+    
+    # Game state
+    app.gameOver = False
+    app.paused = False
+    app.stepsPerSecond = 5
+
+def placeFood(app):
+    while True:
+        row = random.randint(0, app.rows - 1)
+        col = random.randint(0, app.cols - 1)
+        if (row, col) not in app.snake:
+            return (row, col)
+
+def redrawAll(app):
+    drawLabel('Snake', 200, 30, size=24, bold=True)
+    drawLabel(f'Score: {len(app.snake)-1}', 200, 50, size=16)
+    drawBoard(app)
+    drawSnake(app)
+    drawFood(app)
+    drawBoardBorder(app)
+    
+    if app.gameOver:
+        drawRect(0, 0, 400, 450, fill='black', opacity=50)
+        drawLabel('Game Over!', 200, 200, size=30, fill='white', bold=True)
+        drawLabel(f'Final Score: {len(app.snake)-1}', 200, 230, size=20, fill='white')
+        drawLabel('Press r to restart', 200, 260, size=16, fill='white')
+    elif app.paused:
+        drawLabel('Paused (press p to unpause)', 200, 440, size=14)
+
+def drawBoard(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            drawCell(app, row, col, 'white')
+
+def drawSnake(app):
+    for i, (row, col) in enumerate(app.snake):
+        color = 'darkGreen' if i == 0 else 'green'
+        drawCell(app, row, col, color)
+
+def drawFood(app):
+    row, col = app.food
+    drawCell(app, row, col, 'red')
+
+def drawBoardBorder(app):
+    drawRect(app.boardLeft, app.boardTop, app.boardWidth, app.boardHeight,
+             fill=None, border='black', borderWidth=4)
+
+def drawCell(app, row, col, color):
+    cellLeft, cellTop = getCellLeftTop(app, row, col)
+    cellWidth, cellHeight = getCellSize(app)
+    drawRect(cellLeft, cellTop, cellWidth, cellHeight,
+             fill=color, border='lightGray', borderWidth=app.cellBorderWidth)
+
+def getCellLeftTop(app, row, col):
+    cellWidth, cellHeight = getCellSize(app)
+    cellLeft = app.boardLeft + col * cellWidth
+    cellTop = app.boardTop + row * cellHeight
+    return cellLeft, cellTop
+
+def getCellSize(app):
+    cellWidth = app.boardWidth / app.cols
+    cellHeight = app.boardHeight / app.rows
+    return cellWidth, cellHeight
+
+def onStep(app):
+    if not app.gameOver and not app.paused:
+        moveSnake(app)
+
+def moveSnake(app):
+    headRow, headCol = app.snake[0]
+    drow, dcol = app.direction
+    newRow = headRow + drow
+    newCol = headCol + dcol
+    
+    # Check wall collision
+    if newRow < 0 or newRow >= app.rows or newCol < 0 or newCol >= app.cols:
+        app.gameOver = True
+        return
+    
+    # Check self collision
+    if (newRow, newCol) in app.snake:
+        app.gameOver = True
+        return
+    
+    # Move snake
+    app.snake.insert(0, (newRow, newCol))
+    
+    # Check food
+    if (newRow, newCol) == app.food:
+        app.food = placeFood(app)
+    else:
+        app.snake.pop()
+
+def onKeyPress(app, key):
+    if key == 'r':
+        onAppStart(app)
+    elif key == 'p':
+        app.paused = not app.paused
+    elif not app.gameOver and not app.paused:
+        if key == 'up' and app.direction != (1, 0):
+            app.direction = (-1, 0)
+        elif key == 'down' and app.direction != (-1, 0):
+            app.direction = (1, 0)
+        elif key == 'left' and app.direction != (0, 1):
+            app.direction = (0, -1)
+        elif key == 'right' and app.direction != (0, -1):
+            app.direction = (0, 1)
+
+def main():
+    runApp()
+
+main()</code></pre>
+    
+    <p><a href="poty.html">&larr; Back to Portfolio</a></p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Santi Anzaldo</p>
+  </footer>
+
+</body>
+</html>
